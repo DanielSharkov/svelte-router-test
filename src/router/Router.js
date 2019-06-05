@@ -256,6 +256,7 @@ export default function Router(conf) {
 			component: null,
 		},
 		history: [],
+		historyIndex: 0,
 	})
 
 	/*
@@ -399,10 +400,23 @@ export default function Router(conf) {
 		let str = ''
 		for (const idx in tokens) {
 			const token = tokens[idx]
+			if (token.param && !params) throw new Error(
+				`expected parameter '${token.token}' but got '${params}'`
+			)
 			str += token.param ?
 				`/${params[token.token]}` : `/${token.token}`
 		}
 		return str
+	}
+
+	function nameToPath(name, params) {
+		if (name && name === '') throw new Error(
+			`invalid name: '${name}'`
+		)
+		return stringifyRoutePath(
+			_routes[name].path.tokens,
+			params,
+		)
 	}
 
 	let historyIndex = 0
@@ -428,35 +442,140 @@ export default function Router(conf) {
 			}
 		}
 
-		const urlPathString = stringifyRoutePath(
-			route.path.tokens,
-			params,
-		)
-
-		if (historyIndex != history.length-1) {
-			history.splice(historyIndex, history.length)
+		if (history.length > 0) {
+			const currentRoute = history[historyIndex]
+			if (name === currentRoute.name) {
+				if (currentRoute.params && params) {
+					for (const param in params) {
+						if (
+							param in currentRoute.params &&
+							params[param] === currentRoute.params[param]
+						) return
+					}
+				}
+				else return
+			}
 		}
-		history.push(name)
-		historyIndex = history.length-1
-		console.log(historyIndex)
+
+		if (historyIndex !== history.length - 1) {
+			// Overwrite last history entries when index is behind
+			history.splice(
+				historyIndex + 1,
+				history.length,
+			)
+		}
+
+		// Push new route to history
+		history.push({
+			name,
+			params,
+		})
+		historyIndex = history.length - 1
+		
 		storeSet({
 			history: history,
+			historyIndex,
 			current: {
 				name,
 				params,
 				component: route.component,
 			},
 		})
-		window.history.pushState(params, null, urlPathString)
+		window.history.pushState(
+			params,
+			null,
+			stringifyRoutePath(
+				route.path.tokens,
+				params,
+			),
+		)
 	}
 
 	const back = function(n = 1) {
-		console.log(`TODO: back ${historyIndex} - n(${n}) = ${historyIndex - n}`)
-		historyIndex -= n
+		if (!Number(n)) throw new Error(
+			`given value is not a number: ${n} (${typeof n})`
+		)
+
+		// TODO:
+		if (n < 0) throw new Error(
+			'HANDLE ME - Negative numbers on back'
+		)
+
+		// Abbort back call when history is not bigger then to records
+		if (history.length < 2) return
+
+		if (historyIndex < 1) return
+
+		if (n > history.length) {
+			historyIndex = 0
+		}
+		else {
+			historyIndex -= n
+		}
+
+		const historyEntry = n > history.length ?
+			history[0] : history[historyIndex]
+
+		const route = _routes[historyEntry.name]
+
+		storeSet({
+			history: history,
+			historyIndex,
+			current: {
+				name: historyEntry.name,
+				params: historyEntry.params,
+				component: route.component,
+			},
+		})
+		window.history.pushState(
+			historyEntry.params,
+			null,
+			stringifyRoutePath(
+				route.path.tokens,
+				historyEntry.params,
+			),
+		)
 	}
 
-	const forward = function() {
-		console.log('TODO: forward')
+	const forward = function(n = 1) {
+		if (!Number(n)) throw new Error(
+			`given value is not a number: ${n} (${typeof n})`
+		)
+
+		// TODO:
+		if (n < 0) throw new Error(
+			'HANDLE ME - Negative numbers on back'
+		)
+
+		if (historyIndex + n >= history.length) {
+			historyIndex = history.length - 1
+		}
+		else {
+			historyIndex += n
+		}
+
+		const historyEntry = n > history.length ?
+			history[history.length - 1] : history[historyIndex]
+
+		const route = _routes[historyEntry.name]
+
+		storeSet({
+			history: history,
+			historyIndex,
+			current: {
+				name: historyEntry.name,
+				params: historyEntry.params,
+				component: route.component,
+			},
+		})
+		window.history.pushState(
+			historyEntry.params,
+			null,
+			stringifyRoutePath(
+				route.path.tokens,
+				historyEntry.params,
+			),
+		)
 	}
 
 	Object.defineProperties(this, {
@@ -468,5 +587,6 @@ export default function Router(conf) {
 		// }}
 		back: {value: back},
 		forward: {value: forward},
+		nameToPath: {value: nameToPath},
 	})
 }

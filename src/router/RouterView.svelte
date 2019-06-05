@@ -1,5 +1,8 @@
-<svelte:component this={$router.current.component}></svelte:component>
+<svelte:component
+	this={$router.current.component}
+	params={$router.current.params}
+/>
 
 <script>
-export let router;
+	export let router;
 </script>
