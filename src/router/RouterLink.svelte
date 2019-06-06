@@ -1,7 +1,4 @@
-<a href={url} on:click={e => {
-	e.preventDefault()
-	router.push(to, params)
-}}>
+<a href={url} on:click|preventDefault={() => router.push(to, params)}>
 	<slot/>
 </a>
 

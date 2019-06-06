@@ -245,34 +245,16 @@ export default function Router(conf) {
 		component: null,
 		redirect: null,
 	}
-
 	const {
 		subscribe: storeSubscribe,
 		set: storeSet,
 	} = writable({
-		current: {
+		route: {
 			name: '',
 			params: {},
 			component: null,
 		},
-		history: [],
-		historyIndex: 0,
 	})
-
-	/*
-	return {
-		subscribe,
-		goTo(name) {
-			console.log('GOTO? ', name)
-			update(n => {
-				return {
-					name: name,
-					counter: n.counter,
-				}
-			})
-		}
-	}
-	*/
 
 	for (const routeName in conf.routes) {
 		const route = conf.routes[routeName]
@@ -311,7 +293,7 @@ export default function Router(conf) {
 		)
 
 		const entry = {
-			path: path,
+			path,
 			component: route.component,
 			redirect: route.redirect,
 		}
@@ -330,6 +312,8 @@ export default function Router(conf) {
 				// Initialize parameterized branch
 				else {
 					const newNode = {
+						routeName,
+						name: token.token,
 						param: null,
 						routes: {},
 						redirect: null,
@@ -344,6 +328,7 @@ export default function Router(conf) {
 				// Declare static route node
 				if (!routeNode) {
 					const newNode = {
+						routeName,
 						param: null,
 						routes: {},
 						redirect: null,
@@ -365,6 +350,7 @@ export default function Router(conf) {
 	const getRoute = path => {
 		const tokens = parseURLPath(path)
 		let currentNode = _index
+		const params = {}
 		for (let level = 0; level < tokens.length; level++) {
 			const token = tokens[level]
 
@@ -375,19 +361,24 @@ export default function Router(conf) {
 			// parameter route
 			else if(currentNode.param) {
 				currentNode = currentNode.param
+				params[currentNode.name] = token
 			}
 
 			// is last token
 			if (level + 1 >= tokens.length) {
 				// display component
 				if (currentNode.component) return {
+					name: currentNode.routeName,
+					params,
 					component: currentNode.component
 				}
 				// redirect to another view
 				else if(currentNode.redirect) return {
-					redirect: true,
-					redirectComponent: currentNode.redirect,
+					name: currentNode.routeName,
+					params,
+					component: currentNode.redirect,
 				}
+				//TODO: check fallback before returning an error
 				// not found
 				else return new Error(
 					`path ${path} doesn't resolve any route`
@@ -419,9 +410,6 @@ export default function Router(conf) {
 		)
 	}
 
-	let historyIndex = 0
-	const history = []
-
 	const push = function(name, params) {
 		const route = _routes[name]
 		if (!route) throw new Error(
@@ -442,151 +430,62 @@ export default function Router(conf) {
 			}
 		}
 
-		if (history.length > 0) {
-			const currentRoute = history[historyIndex]
-			if (name === currentRoute.name) {
-				if (currentRoute.params && params) {
-					for (const param in params) {
-						if (
-							param in currentRoute.params &&
-							params[param] === currentRoute.params[param]
-						) return
-					}
-				}
-				else return
-			}
-		}
-
-		if (historyIndex !== history.length - 1) {
-			// Overwrite last history entries when index is behind
-			history.splice(
-				historyIndex + 1,
-				history.length,
-			)
-		}
-
-		// Push new route to history
-		history.push({
-			name,
+		const stringified = stringifyRoutePath(
+			route.path.tokens,
 			params,
-		})
-		historyIndex = history.length - 1
-		
+		)
+
 		storeSet({
-			history: history,
-			historyIndex,
-			current: {
+			route: {
 				name,
 				params,
 				component: route.component,
 			},
 		})
-		window.history.pushState(
-			params,
-			null,
-			stringifyRoutePath(
-				route.path.tokens,
-				params,
-			),
-		)
+		if (window.location.pathname != stringified) {
+			window.history.pushState(
+				{name, params},
+				null,
+				stringified,
+			)
+		}
 	}
 
-	const back = function(n = 1) {
-		if (!Number(n)) throw new Error(
-			`given value is not a number: ${n} (${typeof n})`
-		)
-
-		// TODO:
-		if (n < 0) throw new Error(
-			'HANDLE ME - Negative numbers on back'
-		)
-
-		// Abbort back call when history is not bigger then to records
-		if (history.length < 2) return
-
-		if (historyIndex < 1) return
-
-		if (n > history.length) {
-			historyIndex = 0
+	const navigate = function(path) {
+		const route = getRoute(path)
+		if (route instanceof Error) throw route
+		if (window.location.pathname != path) {
+			window.history.pushState(
+				{
+					name: route.name,
+					params: route.params,
+				},
+				null,
+				path,
+			)
 		}
-		else {
-			historyIndex -= n
-		}
-
-		const historyEntry = n > history.length ?
-			history[0] : history[historyIndex]
-
-		const route = _routes[historyEntry.name]
-
 		storeSet({
-			history: history,
-			historyIndex,
-			current: {
-				name: historyEntry.name,
-				params: historyEntry.params,
+			route: {
+				name: route.name,
+				params: route.params,
 				component: route.component,
 			},
 		})
-		window.history.pushState(
-			historyEntry.params,
-			null,
-			stringifyRoutePath(
-				route.path.tokens,
-				historyEntry.params,
-			),
-		)
 	}
 
-	const forward = function(n = 1) {
-		if (!Number(n)) throw new Error(
-			`given value is not a number: ${n} (${typeof n})`
-		)
-
-		// TODO:
-		if (n < 0) throw new Error(
-			'HANDLE ME - Negative numbers on back'
-		)
-
-		if (historyIndex + n >= history.length) {
-			historyIndex = history.length - 1
-		}
-		else {
-			historyIndex += n
-		}
-
-		const historyEntry = n > history.length ?
-			history[history.length - 1] : history[historyIndex]
-
-		const route = _routes[historyEntry.name]
-
-		storeSet({
-			history: history,
-			historyIndex,
-			current: {
-				name: historyEntry.name,
-				params: historyEntry.params,
-				component: route.component,
-			},
-		})
-		window.history.pushState(
-			historyEntry.params,
-			null,
-			stringifyRoutePath(
-				route.path.tokens,
-				historyEntry.params,
-			),
-		)
-	}
+	window.addEventListener('popstate', () => {
+		navigate(window.location.pathname)
+	})
 
 	Object.defineProperties(this, {
-		subscribe: {value: storeSubscribe},
-		push: {value: push},
-		// 'resolveURLPath': {value: (path) => {
-		// 	console.log(`INDEX: ${JSON.stringify(_index, null, 2)}`)
-		// 	console.log(`PUSH ${path} -> `, getRoute(path))
-		// }}
-		back: {value: back},
-		forward: {value: forward},
+		subscribe:  {value: storeSubscribe},
+		push:       {value: push},
+		back:       {value: () => window.history.back()},
+		forward:    {value: () => window.history.forward()},
 		nameToPath: {value: nameToPath},
+		navigate:   {value: navigate},
 	})
+
+	// Initialize current route
+	navigate(window.location.pathname)
 }

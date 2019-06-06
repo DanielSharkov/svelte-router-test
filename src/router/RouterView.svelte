@@ -1,6 +1,6 @@
 <svelte:component
-	this={$router.current.component}
-	params={$router.current.params}
+	this={$router.route.component}
+	params={$router.route.params}
 />
 
 <script>
