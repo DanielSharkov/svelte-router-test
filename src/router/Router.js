@@ -245,6 +245,7 @@ export default function Router(conf) {
 		component: null,
 		redirect: null,
 	}
+	const _fallbackRoute = conf.fallback
 	const {
 		subscribe: storeSubscribe,
 		set: storeSet,
@@ -453,7 +454,20 @@ export default function Router(conf) {
 
 	const navigate = function(path) {
 		const route = getRoute(path)
-		if (route instanceof Error) throw route
+		if (route instanceof Error) {
+			if (_fallbackRoute) {
+				const fallbackRoute = getRoute(nameToPath(_fallbackRoute))
+				storeSet({
+					route: {
+						name: fallbackRoute.name,
+						params: fallbackRoute.params,
+						component: fallbackRoute.component,
+					},
+				})
+				return
+			}
+			else throw route
+		}
 		if (window.location.pathname != path) {
 			window.history.pushState(
 				{
