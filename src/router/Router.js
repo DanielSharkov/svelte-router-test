@@ -240,11 +240,16 @@ export default function Router(conf) {
 	const _templates = {}
 	const _routes = {}
 	const _index = {
+		routeName: null,
 		param: null,
 		routes: {},
 		component: null,
 		redirect: null,
 	}
+
+	const _beforePush = conf.beforePush !== undefined ?
+		conf.beforePush : null
+
 	const _fallbackRoute = conf.fallback
 	const {
 		subscribe: storeSubscribe,
@@ -302,7 +307,10 @@ export default function Router(conf) {
 		_routes[routeName] = entry
 
 		let currentNode = _index
-		for (let level = 0; level < path.tokens.length; level++) {
+		if (path.tokens.length <= 0) {
+			currentNode.routeName = routeName
+		}
+		else for (let level = 0; level < path.tokens.length; level++) {
 			const token = path.tokens[level]
 
 			if (token.param) {
@@ -348,11 +356,46 @@ export default function Router(conf) {
 		currentNode.component = entry.component
 	}
 
+	function verifyNameAndParams(name, params) {
+		const route = _routes[name]
+		if (!route) {
+			throw new Error(`route '${name}' not found`)
+		}
+
+		const paramNames = Object.keys(route.path.parameters)
+		if (paramNames.length > 0) {
+			if (!params) {
+				throw new Error(`missing parameters: ${paramNames}`)
+			}
+
+			// Parameters expected
+			for (const paramName in route.path.parameters) {
+				if (!(paramName in params)) {
+					throw new Error(`missing parameter '${paramName}'`)
+				}
+			}
+		}
+
+		return route
+	}
+
 	const getRoute = path => {
 		const tokens = parseURLPath(path)
 		let currentNode = _index
 		const params = {}
-		for (let level = 0; level < tokens.length; level++) {
+
+		if (tokens.length === 0) {
+			if (currentNode.routeName == null) {
+				return new Error(
+					`path ${path} doesn't resolve any route`
+				)
+			}
+			return {
+				name: currentNode.routeName,
+				component: currentNode.component,
+			}
+		}
+		else for (let level = 0; level < tokens.length; level++) {
 			const token = tokens[level]
 
 			// tokens is a static route
@@ -363,27 +406,35 @@ export default function Router(conf) {
 			else if(currentNode.param) {
 				currentNode = currentNode.param
 				params[currentNode.name] = token
+			} else {
+				return new Error(
+					`path ${path} doesn't resolve any route`
+				)
 			}
 
 			// is last token
 			if (level + 1 >= tokens.length) {
 				// display component
-				if (currentNode.component) return {
-					name: currentNode.routeName,
-					params,
-					component: currentNode.component
+				if (currentNode.component) {
+					return {
+						name: currentNode.routeName,
+						params,
+						component: currentNode.component
+					}
 				}
 				// redirect to another view
-				else if(currentNode.redirect) return {
-					name: currentNode.routeName,
-					params,
-					component: currentNode.redirect,
+				else if(currentNode.redirect) {
+					return {
+						name: currentNode.routeName,
+						params,
+						component: currentNode.redirect,
+					}
 				}
-				//TODO: check fallback before returning an error
-				// not found
-				else return new Error(
-					`path ${path} doesn't resolve any route`
-				)
+				else {
+					return new Error(
+						`path ${path} doesn't resolve any route`
+					)
+				}
 			}
 		}
 	}
@@ -411,31 +462,34 @@ export default function Router(conf) {
 		)
 	}
 
-	const push = function(name, params) {
-		const route = _routes[name]
-		if (!route) throw new Error(
-			`route '${name}' not found`
-		)
+	// setCurrentRoute executes the beforePush hook (if any), updates the
+	// current route pushing the path to the browser history if the current
+	// browser URL doesn't match and returns the name and parameters of
+	// the route that was finally selected
+	function setCurrentRoute(path, name, params) {
+		let route = verifyNameAndParams(name, params)
 
-		const paramNames = Object.keys(route.path.parameters)
-		if (paramNames.length > 0) {
-			if (!params) throw new Error(
-				`missing parameters: ${paramNames}`
-			)
-
-			// Parameters expected
-			for (const paramName in route.path.parameters) {
-				if (!(paramName in params)) throw new Error(
-					`missing parameter '${paramName}'`
-				)
+		if (_beforePush !== undefined) {
+			const beforePushRes = _beforePush(name, params)
+			if (beforePushRes === false) {
+				return false
 			}
+			else if (beforePushRes != null) {
+				if (!beforePushRes.hasOwnProperty("name")) {
+					throw new Error(
+						'beforePush must return either false '+
+							'or {name, ?params}'+
+							`; returned: ${beforePushRes}`,
+					)
+				}
+				name = beforePushRes.name
+				params = beforePushRes.params
+			}
+	
+			route = verifyNameAndParams(name, params)
 		}
 
-		const stringified = stringifyRoutePath(
-			route.path.tokens,
-			params,
-		)
-
+		// Update store
 		storeSet({
 			route: {
 				name,
@@ -443,16 +497,35 @@ export default function Router(conf) {
 				component: route.component,
 			},
 		})
-		if (window.location.pathname != stringified) {
+
+		// Reconstruct path from route tokens and parameters if non is given
+		if (path == null) {
+			path = stringifyRoutePath(
+				route.path.tokens,
+				params,
+			)
+		}
+
+		if (window.location.pathname != path) {
 			window.history.pushState(
 				{name, params},
 				null,
-				stringified,
+				path,
 			)
 		}
+
+		return {name, params}
 	}
 
-	const navigate = function(path) {
+	function push(name, params) {
+		return setCurrentRoute(
+			null,
+			name,
+			params,
+		)
+	}
+
+	function navigate(path) {
 		const route = getRoute(path)
 		if (route instanceof Error) {
 			if (_fallbackRoute) {
@@ -468,23 +541,12 @@ export default function Router(conf) {
 			}
 			else throw route
 		}
-		if (window.location.pathname != path) {
-			window.history.pushState(
-				{
-					name: route.name,
-					params: route.params,
-				},
-				null,
-				path,
-			)
-		}
-		storeSet({
-			route: {
-				name: route.name,
-				params: route.params,
-				component: route.component,
-			},
-		})
+
+		return setCurrentRoute(
+			path,
+			route.name,
+			route.params,
+		)
 	}
 
 	window.addEventListener('popstate', () => {

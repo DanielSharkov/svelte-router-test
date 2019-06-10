@@ -1,11 +1,16 @@
 import Router from './router/Router'
 
 import ViewHome from './views/Home'
+import RootHome from './views/Root'
 import ViewParams from './views/Params'
 import ViewNotFound from './views/NotFound'
 
 export default new Router({
 	routes: {
+		'root': {
+			path: '/',
+			component: RootHome,
+		},
 		'home': {
 			path: '/home',
 			component: ViewHome,
@@ -20,4 +25,15 @@ export default new Router({
 		},
 	},
 	fallback: '404',
+	beforePush(name, params) {
+		if (name == 'root') {
+			name = 'home'
+		}
+
+		console.log('beforePush (hook):', name, params)
+		return {
+			name,
+			params,
+		}
+	},
 })
