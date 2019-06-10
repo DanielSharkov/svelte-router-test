@@ -261,7 +261,7 @@ export default function Router(conf) {
 
 	const _fallbackRoute = conf.fallback
 	// if redirect is not set then it's false
-	if (_fallbackRoute.redirect == undefined) {
+	if (_fallbackRoute && _fallbackRoute.redirect == undefined) {
 		_fallbackRoute.redirect = false
 	}
 
