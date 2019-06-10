@@ -6,6 +6,7 @@ import ViewParams from './views/Params'
 import ViewNotFound from './views/NotFound'
 
 export default new Router({
+	window,
 	routes: {
 		'root': {
 			path: '/',

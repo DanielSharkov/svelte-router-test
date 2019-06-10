@@ -237,6 +237,16 @@ function parseURLPath(path) {
 }
 
 export default function Router(conf) {
+	if (conf.routes == null) {
+		throw new Error('no routes providen')
+	}
+
+	const _window = (function() {
+		if (conf.window == null) {
+			throw new Error('missing window reference')
+		}
+		return conf.window
+	})();
 	const _templates = {}
 	const _routes = {}
 	const _index = {
@@ -489,8 +499,8 @@ export default function Router(conf) {
 			)
 		}
 
-		if (redirect && window.location.pathname != path) {
-			window.history.pushState(
+		if (redirect && _window.location.pathname != path) {
+			_window.history.pushState(
 				{name, params},
 				null,
 				path,
@@ -529,19 +539,19 @@ export default function Router(conf) {
 		)
 	}
 
-	window.addEventListener('popstate', () => {
-		navigate(window.location.pathname)
+	_window.addEventListener('popstate', () => {
+		navigate(_window.location.pathname)
 	})
 
 	Object.defineProperties(this, {
 		subscribe:  {value: storeSubscribe},
 		push:       {value: push},
-		back:       {value: () => window.history.back()},
-		forward:    {value: () => window.history.forward()},
+		back:       {value: () => _window.history.back()},
+		forward:    {value: () => _window.history.forward()},
 		nameToPath: {value: nameToPath},
 		navigate:   {value: navigate},
 	})
 
 	// Initialize current route
-	navigate(window.location.pathname)
+	navigate(_window.location.pathname)
 }
