@@ -244,13 +244,17 @@ export default function Router(conf) {
 		param: null,
 		routes: {},
 		component: null,
-		redirect: null,
 	}
 
 	const _beforePush = conf.beforePush !== undefined ?
 		conf.beforePush : null
 
 	const _fallbackRoute = conf.fallback
+	// if redirect is not set then it's false
+	if (_fallbackRoute.redirect == undefined) {
+		_fallbackRoute.redirect = false
+	}
+
 	const {
 		subscribe: storeSubscribe,
 		set: storeSet,
@@ -275,16 +279,6 @@ export default function Router(conf) {
 			`redeclaration of route ${routeName}`
 		)
 
-		// Ensure redirect and component aren't defined simultaneously
-		if (
-			route.redirect !== undefined &&
-			route.component !== undefined
-		) throw new Error(
-			`route ${routeName} defines both 'redirect' and 'component'`
-		)
-
-		//TODO: Ensure redirect isn't recursive
-
 		// Parse path and ensure it's validity
 		const path = parsePathTemplate(template)
 		if (path instanceof Error) throw new Error(
@@ -301,7 +295,6 @@ export default function Router(conf) {
 		const entry = {
 			path,
 			component: route.component,
-			redirect: route.redirect,
 		}
 		_templates[template] = entry
 		_routes[routeName] = entry
@@ -325,7 +318,6 @@ export default function Router(conf) {
 						name: token.token,
 						param: null,
 						routes: {},
-						redirect: null,
 						component: null,
 					}
 					currentNode.param = newNode
@@ -340,7 +332,6 @@ export default function Router(conf) {
 						routeName,
 						param: null,
 						routes: {},
-						redirect: null,
 						component: null,
 					}
 					currentNode.routes[token.token] = newNode
@@ -352,7 +343,6 @@ export default function Router(conf) {
 				}
 			}
 		}
-		currentNode.redirect = entry.redirect
 		currentNode.component = entry.component
 	}
 
@@ -422,14 +412,6 @@ export default function Router(conf) {
 						component: currentNode.component
 					}
 				}
-				// redirect to another view
-				else if(currentNode.redirect) {
-					return {
-						name: currentNode.routeName,
-						params,
-						component: currentNode.redirect,
-					}
-				}
 				else {
 					return new Error(
 						`path ${path} doesn't resolve any route`
@@ -466,7 +448,7 @@ export default function Router(conf) {
 	// current route pushing the path to the browser history if the current
 	// browser URL doesn't match and returns the name and parameters of
 	// the route that was finally selected
-	function setCurrentRoute(path, name, params) {
+	function setCurrentRoute(path, name, params, redirect = true) {
 		let route = verifyNameAndParams(name, params)
 
 		if (_beforePush !== undefined) {
@@ -484,6 +466,7 @@ export default function Router(conf) {
 				}
 				name = beforePushRes.name
 				params = beforePushRes.params
+				path = nameToPath(name, params)
 			}
 	
 			route = verifyNameAndParams(name, params)
@@ -506,7 +489,7 @@ export default function Router(conf) {
 			)
 		}
 
-		if (window.location.pathname != path) {
+		if (redirect && window.location.pathname != path) {
 			window.history.pushState(
 				{name, params},
 				null,
@@ -528,16 +511,13 @@ export default function Router(conf) {
 	function navigate(path) {
 		const route = getRoute(path)
 		if (route instanceof Error) {
-			if (_fallbackRoute) {
-				const fallbackRoute = getRoute(nameToPath(_fallbackRoute))
-				storeSet({
-					route: {
-						name: fallbackRoute.name,
-						params: fallbackRoute.params,
-						component: fallbackRoute.component,
-					},
-				})
-				return
+			if (_fallbackRoute != null) {
+				return setCurrentRoute(
+					null,
+					_fallbackRoute.name,
+					_fallbackRoute.params,
+					_fallbackRoute.redirect,
+				)
 			}
 			else throw route
 		}

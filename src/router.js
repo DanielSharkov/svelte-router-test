@@ -24,7 +24,9 @@ export default new Router({
 			component: ViewNotFound,
 		},
 	},
-	fallback: '404',
+	fallback: {
+		name: '404',
+	},
 	beforePush(name, params) {
 		if (name == 'root') {
 			name = 'home'
@@ -34,6 +36,8 @@ export default new Router({
 		return {
 			name,
 			params,
+			// if redirect is not set then it's true
+			redirect: true,
 		}
 	},
 })
