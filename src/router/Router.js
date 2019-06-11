@@ -83,7 +83,7 @@ function parsePathTemplate(template) {
 	let isParam = false
 	let tokenStart = 1
 
-	for (const itr in template) {
+	for (let itr = 0; itr < template.length; itr++) {
 		const charCode = template.charCodeAt(itr)
 
 		if (isPreviousSlash) {
@@ -422,7 +422,7 @@ export default function Router(conf) {
 		return route
 	}
 
-	const getRoute = path => {
+	function getRoute(path) {
 		const tokens = parseURLPath(path)
 		let currentNode = _index
 		const params = {}
