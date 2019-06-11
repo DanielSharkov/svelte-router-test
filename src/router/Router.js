@@ -341,7 +341,7 @@ export default function Router(conf) {
 		if (path.tokens.length <= 0) {
 			currentNode.routeName = routeName
 		}
-		else for (const level in path.tokens) {
+		else for (let level = 0; level < path.tokens.length; level++) {
 			const token = path.tokens[level]
 
 			if (token.param) {
@@ -436,7 +436,7 @@ export default function Router(conf) {
 				component: currentNode.component,
 			}
 		}
-		else for (const level in tokens) {
+		else for (let level = 0; level < tokens.length; level++) {
 			const token = tokens[level]
 
 			// tokens is a static route
