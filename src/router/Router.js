@@ -42,7 +42,7 @@ function parsePathTemplate(template) {
 
 	const templObject = {
 		tokens: [],
-		parameters: {},
+		parameters: [],
 	}
 
 	const regToken = (isParam, begin, end) => {
@@ -57,7 +57,7 @@ function parsePathTemplate(template) {
 				`redeclared parameter '${slice}' at ${begin}`
 			)
 
-			if (isParam) templObject.parameters[slice] = true
+			if (isParam) templObject.parameters.push(slice)
 		}
 
 		templObject.tokens.push({
@@ -371,19 +371,22 @@ export default function Router(conf) {
 	})
 
 	function verifyNameAndParams(name, params) {
+		if (name === undefined) {
+			throw new Error('missing parameter name')
+		}
 		const route = _routes[name]
-		if (!route) {
+		if (route == null) {
 			throw new Error(`route '${name}' not found`)
 		}
 
-		const paramNames = Object.keys(route.path.parameters)
+		const paramNames = route.path.parameters
 		if (paramNames.length > 0) {
 			if (!params) {
 				throw new Error(`missing parameters: ${paramNames}`)
 			}
 
 			// Parameters expected
-			for (const paramName in route.path.parameters) {
+			for (const paramName of route.path.parameters) {
 				if (!(paramName in params)) {
 					throw new Error(`missing parameter '${paramName}'`)
 				}
