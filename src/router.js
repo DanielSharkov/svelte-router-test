@@ -45,7 +45,6 @@ export default new Router({
 			name = 'home'
 		}
 
-		console.log('beforePush (hook):', name, params)
 		return {
 			name,
 			params,

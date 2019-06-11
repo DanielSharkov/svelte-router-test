@@ -44,7 +44,6 @@ function pushRouter(name) {
 		}
 	}
 
-	console.log(name, params)
 	router.push(name, params)
 }
 
