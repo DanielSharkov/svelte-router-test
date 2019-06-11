@@ -237,8 +237,8 @@ function parseURLPath(path) {
 }
 
 export default function Router(conf) {
-	if (conf.routes == null) {
-		throw new Error('no routes providen')
+	if (conf.routes == null || conf.routes.length < 1) {
+		throw new Error('missing routes')
 	}
 
 	const _window = (function() {
@@ -267,8 +267,9 @@ export default function Router(conf) {
 
 	const {
 		subscribe: storeSubscribe,
-		set: storeSet,
+		update: storeUpdate,
 	} = writable({
+		routes: [],
 		route: {
 			name: '',
 			params: {},
@@ -305,6 +306,7 @@ export default function Router(conf) {
 		const entry = {
 			path,
 			component: route.component,
+			metadata: route.metadata,
 		}
 		_templates[template] = entry
 		_routes[routeName] = entry
@@ -328,6 +330,7 @@ export default function Router(conf) {
 						name: token.token,
 						param: null,
 						routes: {},
+						metadata: route.metadata,
 						component: null,
 					}
 					currentNode.param = newNode
@@ -342,6 +345,7 @@ export default function Router(conf) {
 						routeName,
 						param: null,
 						routes: {},
+						metadata: route.metadata,
 						component: null,
 					}
 					currentNode.routes[token.token] = newNode
@@ -355,6 +359,16 @@ export default function Router(conf) {
 		}
 		currentNode.component = entry.component
 	}
+
+	storeUpdate(store => {
+		for (let route in _routes) {
+			store.routes.push({
+				name: route,
+				..._routes[route],
+			})
+		}
+		return store
+	})
 
 	function verifyNameAndParams(name, params) {
 		const route = _routes[name]
@@ -483,12 +497,14 @@ export default function Router(conf) {
 		}
 
 		// Update store
-		storeSet({
-			route: {
+		storeUpdate(store => {
+			store.route = {
 				name,
 				params,
 				component: route.component,
-			},
+				metadata: route.metadata,
+			}
+			return store
 		})
 
 		// Reconstruct path from route tokens and parameters if non is given

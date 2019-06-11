@@ -15,10 +15,22 @@ export default new Router({
 		'home': {
 			path: '/home',
 			component: ViewHome,
+			metadata: {
+				nav: {
+					icon: 'home-icon',
+					displayName: 'Home',
+				},
+			},
 		},
 		'test.params': {
 			path: '/test/params/:var',
 			component: ViewParams,
+			metadata: {
+				nav: {
+					icon: 'params-icon',
+					displayName: 'Params',
+				},
+			},
 		},
 		'404': {
 			path: '/404',
