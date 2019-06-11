@@ -1,12 +1,18 @@
-import { readable, writable } from 'svelte/store';
+import { writable } from 'svelte/store'
 
 function isValidTokenChar(code) {
 	// a-z
-	if (code >= 97 && code <= 122) return true
+	if (code >= 97 && code <= 122) {
+		return true
+	}
 	// A-Z
-	if (code >= 65 && code <= 90) return true
+	if (code >= 65 && code <= 90) {
+		return true
+	}
 	// 0-9
-	if (code >= 48 && code <= 57) return true
+	if (code >= 48 && code <= 57) {
+		return true
+	}
 
 	switch (code) {
 		case 33:  // ! Exclamation mark
@@ -32,13 +38,13 @@ function isValidTokenChar(code) {
 }
 
 function parsePathTemplate(template) {
-	if (typeof template !== 'string') return new Error(
-		`unexpected type (${typeof template})`
-	)
+	if (typeof template !== 'string') {
+		return new Error(`unexpected type (${typeof template})`)
+	}
 
-	if (template.length < 1) return new Error(
-		`invalid path (empty)`
-	)
+	if (template.length < 1) {
+		return new Error(`invalid path (empty)`)
+	}
 
 	const templObject = {
 		tokens: [],
@@ -49,15 +55,17 @@ function parsePathTemplate(template) {
 		const slice = template.substr(begin, end-begin)
 
 		if (isParam) {
-			if (slice.length < 1) return new Error(
-				`missing parameter name at ${begin}`
-			)
+			if (slice.length < 1) {
+				return new Error(`missing parameter name at ${begin}`)
+			}
 
-			if (slice in templObject.parameters) return new Error(
-				`redeclared parameter '${slice}' at ${begin}`
-			)
+			if (slice in templObject.parameters) {
+				return new Error(`redeclared parameter '${slice}' at ${begin}`)
+			}
 
-			if (isParam) templObject.parameters.push(slice)
+			if (isParam) {
+				templObject.parameters.push(slice)
+			}
 		}
 
 		templObject.tokens.push({
@@ -66,21 +74,23 @@ function parsePathTemplate(template) {
 		})
 	}
 
-	if (template.charCodeAt(0) != 47) return new Error(
-		'a path template must begin with a slash'
-	)
+	if (template.charCodeAt(0) != 47) {
+		return new Error('a path template must begin with a slash')
+	}
 	
 	let isPreviousSlash = true
 	let isStatic = false
 	let isParam = false
 	let tokenStart = 1
 
-	for (let itr = 1; itr < template.length; itr++) {
+	for (const itr in template) {
 		const charCode = template.charCodeAt(itr)
 
 		if (isPreviousSlash) {
 			// Ignore multiple slashes
-			if (charCode == 47) continue
+			if (charCode == 47) {
+				continue
+			}
 			isPreviousSlash = false
 
 			// Start scanning parameter
@@ -95,42 +105,44 @@ function parsePathTemplate(template) {
 				isParam = false
 				tokenStart = itr
 			}
-			else return new Error(
-				`unexpected '${String.fromCharCode(charCode)}' at ${itr}`
-			)
+			else {
+				return new Error(
+					`unexpected '${String.fromCharCode(charCode)}' at ${itr}`
+				)
+			}
 		}
 		else if (charCode == 47) {
 			// Terminating slash encountered
 			isPreviousSlash = true
 
-			const err = regToken(
-				isParam,
-				tokenStart,
-				itr,
-			)
-			if (err != null) return err
+			const err = regToken(isParam, tokenStart, itr)
+			if (err != null) {
+				return err
+			}
 
 			isStatic = false
 			isParam = false
 		}
-		else if (!isValidTokenChar(charCode)) return new Error(
-			`unexpected '${String.fromCharCode(charCode)}' at ${itr}`
-		)
+		else if (!isValidTokenChar(charCode)) {
+			return new Error(
+				`unexpected '${String.fromCharCode(charCode)}' at ${itr}`
+			)
+		}
 
 		if (itr+1 >= template.length) {
 			// Last character reached
-			if (isPreviousSlash) break
+			if (isPreviousSlash) {
+				break
+			}
 
-			if (charCode == 58) return new Error(
-				`missing parameter name at ${itr}`
-			)
+			if (charCode == 58) {
+				return new Error(`missing parameter name at ${itr}`)
+			}
 
-			const err = regToken(
-				isParam,
-				tokenStart,
-				template.length,
-			)
-			if (err != null) return err
+			const err = regToken(isParam, tokenStart, template.length)
+			if (err != null) {
+				return err
+			}
 		}
 	}
 
@@ -138,28 +150,36 @@ function parsePathTemplate(template) {
 }
 
 function validateRouteName(routeName) {
-	if (routeName.length < 1) return new Error(
-		`invalid route name (empty)`
-	)
+	if (routeName.length < 1) {
+		return new Error(`invalid route name (empty)`)
+	}
 
 	const charCode = routeName.charCodeAt(0)
 	if (
 		/*A-Z*/ (charCode < 65 && charCode > 90) &&
 		/*a-z*/ (charCode < 97 && charCode > 122)
-	) return new Error(
-		`unexpected character ${String.fromCharCode(charCode)} ` +
-		`in route name at 0 (leading character must be [A-Za-z])`
-	)
+	) {
+		return new Error(
+			`unexpected character ${String.fromCharCode(charCode)} ` +
+			`in route name at 0 (leading character must be [A-Za-z])`
+		)
+	}
 
 	for (let itr = 1; itr < routeName.length; itr++) {
 		const charCode = routeName.charCodeAt(itr)
 
 		// A-Z
-		if (charCode >= 65 && charCode <= 90) continue
+		if (charCode >= 65 && charCode <= 90) {
+			continue
+		}
 		// a-z
-		if (charCode >= 97 && charCode <= 122) continue
+		if (charCode >= 97 && charCode <= 122) {
+			continue
+		}
 		// 0-9
-		if (charCode >= 48 && charCode <= 57) continue
+		if (charCode >= 48 && charCode <= 57) {
+			continue
+		}
 
 		switch (charCode) {
 			case 45: // - Hyphen
@@ -283,25 +303,31 @@ export default function Router(conf) {
 
 		// Ensure route name validity
 		let err = validateRouteName(routeName)
-		if (err instanceof Error) throw err
+		if (err instanceof Error) {
+			throw err
+		}
 
 		// Ensure route name uniqueness
-		if (routeName in _routes) throw new Error(
-			`redeclaration of route ${routeName}`
-		)
+		if (routeName in _routes) {
+			throw new Error(`redeclaration of route ${routeName}`)
+		}
 
 		// Parse path and ensure it's validity
 		const path = parsePathTemplate(template)
-		if (path instanceof Error) throw new Error(
-			`route ${routeName} defines an invalid path template: ${path}`
-		)
+		if (path instanceof Error) {
+			throw new Error(
+				`route ${routeName} defines an invalid path template: ${path}`
+			)
+		}
 
 		// Ensure path template uniqueness
-		if (template in _templates) throw new Error(
-			`route ${routeName} and ` +
-			`${_templates[template]} share the same path template: ` +
-			`'${template}'`
-		)
+		if (template in _templates) {
+			throw new Error(
+				`route ${routeName} and ` +
+				`${_templates[template]} share the same path template: ` +
+				`'${template}'`
+			)
+		}
 
 		const entry = {
 			path,
@@ -315,7 +341,7 @@ export default function Router(conf) {
 		if (path.tokens.length <= 0) {
 			currentNode.routeName = routeName
 		}
-		else for (let level = 0; level < path.tokens.length; level++) {
+		else for (const level in path.tokens) {
 			const token = path.tokens[level]
 
 			if (token.param) {
@@ -403,16 +429,14 @@ export default function Router(conf) {
 
 		if (tokens.length === 0) {
 			if (currentNode.routeName == null) {
-				return new Error(
-					`path ${path} doesn't resolve any route`
-				)
+				return new Error(`path ${path} doesn't resolve any route`)
 			}
 			return {
 				name: currentNode.routeName,
 				component: currentNode.component,
 			}
 		}
-		else for (let level = 0; level < tokens.length; level++) {
+		else for (const level in tokens) {
 			const token = tokens[level]
 
 			// tokens is a static route
@@ -423,10 +447,9 @@ export default function Router(conf) {
 			else if(currentNode.param) {
 				currentNode = currentNode.param
 				params[currentNode.name] = token
-			} else {
-				return new Error(
-					`path ${path} doesn't resolve any route`
-				)
+			}
+			else {
+				return new Error(`path ${path} doesn't resolve any route`)
 			}
 
 			// is last token
@@ -440,9 +463,7 @@ export default function Router(conf) {
 					}
 				}
 				else {
-					return new Error(
-						`path ${path} doesn't resolve any route`
-					)
+					return new Error(`path ${path} doesn't resolve any route`)
 				}
 			}
 		}
@@ -452,19 +473,20 @@ export default function Router(conf) {
 		let str = ''
 		for (const idx in tokens) {
 			const token = tokens[idx]
-			if (token.param && !params) throw new Error(
-				`expected parameter '${token.token}' but got '${params}'`
-			)
-			str += token.param ?
-				`/${params[token.token]}` : `/${token.token}`
+			if (token.param && !params) {
+				throw new Error(
+					`expected parameter '${token.token}' but got '${params}'`
+				)
+			}
+			str += token.param ? `/${params[token.token]}` : `/${token.token}`
 		}
 		return str
 	}
 
 	function nameToPath(name, params) {
-		if (name && name === '') throw new Error(
-			`invalid name: '${name}'`
-		)
+		if (name && name === '') {
+			throw new Error(`invalid name: '${name}'`)
+		}
 		return stringifyRoutePath(
 			_routes[name].path.tokens,
 			params,
@@ -486,9 +508,9 @@ export default function Router(conf) {
 			else if (beforePushRes != null) {
 				if (!beforePushRes.hasOwnProperty("name")) {
 					throw new Error(
-						'beforePush must return either false '+
-							'or {name, ?params}'+
-							`; returned: ${beforePushRes}`,
+						'beforePush must return either false ' +
+						'or {name, ?params}' +
+						`; returned: ${beforePushRes}`,
 					)
 				}
 				name = beforePushRes.name
@@ -512,29 +534,18 @@ export default function Router(conf) {
 
 		// Reconstruct path from route tokens and parameters if non is given
 		if (path == null) {
-			path = stringifyRoutePath(
-				route.path.tokens,
-				params,
-			)
+			path = stringifyRoutePath(route.path.tokens, params)
 		}
 
 		if (redirect && _window.location.pathname != path) {
-			_window.history.pushState(
-				{name, params},
-				null,
-				path,
-			)
+			_window.history.pushState({name, params}, null, path)
 		}
 
 		return {name, params}
 	}
 
 	function push(name, params) {
-		return setCurrentRoute(
-			null,
-			name,
-			params,
-		)
+		return setCurrentRoute(null, name, params)
 	}
 
 	function navigate(path) {
@@ -548,14 +559,12 @@ export default function Router(conf) {
 					_fallbackRoute.redirect,
 				)
 			}
-			else throw route
+			else {
+				throw route
+			}
 		}
 
-		return setCurrentRoute(
-			path,
-			route.name,
-			route.params,
-		)
+		return setCurrentRoute(path, route.name, route.params)
 	}
 
 	_window.addEventListener('popstate', () => {
@@ -563,12 +572,12 @@ export default function Router(conf) {
 	})
 
 	Object.defineProperties(this, {
-		subscribe:  {value: storeSubscribe},
-		push:       {value: push},
-		back:       {value: () => _window.history.back()},
-		forward:    {value: () => _window.history.forward()},
-		nameToPath: {value: nameToPath},
-		navigate:   {value: navigate},
+		subscribe:  { value: storeSubscribe },
+		push:       { value: push },
+		back:       { value: () => _window.history.back() },
+		forward:    { value: () => _window.history.forward() },
+		nameToPath: { value: nameToPath },
+		navigate:   { value: navigate },
 	})
 
 	// Initialize current route
